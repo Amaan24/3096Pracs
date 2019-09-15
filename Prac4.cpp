@@ -35,24 +35,22 @@ long lastInterruptTime = 0; //Used for button debounce
 // Configure your interrupts here.
 // Don't forget to use debouncing.
 void play_pause_isr(void){ //interrupt and debouncing for play/pause
-    //Write your logic here
-	long interruptTime = millis();
+	long interruptTime = millis(); //used for Software debouncing
 
 	if (interruptTime - lastInterruptTime>200){
 	playing = !playing; //toggles between pause and play
 
 }
-	lastInterruptTime = interruptTime;
+	lastInterruptTime = interruptTime; //resets debouncing time
 }
 void stop_isr(void){ //interrupt and debouncing for stop
-    // Write your logic here
-
-	long interruptTime = millis();
+	long interruptTime = millis(); //used for software debouncing
 
 	if (interruptTime - lastInterruptTime>200){
-	stopped = true; //in STOP state
+	stopped = true;
+	exit(0); //Exits program
 }
-	lastInterruptTime = interruptTime;
+	lastInterruptTime = interruptTime; //resets debouncing time
 
 }
 
@@ -62,17 +60,14 @@ void stop_isr(void){ //interrupt and debouncing for stop
 int setup_gpio(void){
     //Set up wiring Pi
     wiringPiSetup();
-    //setting up the buttons
-	//TODO
-	pinMode(PLAY_BUTTON, INPUT); //configures buttons to be inputs
-	pinMode(STOP_BUTTON, INPUT);
+	pinMode(PLAY_BUTTON, INPUT); //configures pins for buttons as digital inputs
+	pinMode(STOP_BUTTON, INPUT);//configures pins for buttons as digital inputs
 	pullUpDnControl(PLAY_BUTTON, PUD_UP); //sets pull up resistors
-	pullUpDnControl(STOP_BUTTON,PUD_UP);
-	wiringPiISR(PLAY_BUTTON, INT_EDGE_RISING, &play_pause_isr); //sets up interrupt for play/pause button 
-	wiringPiISR(STOP_BUTTON, INT_EDGE_RISING, &stop_isr); //sets up interrupt on stop button
+	pullUpDnControl(STOP_BUTTON,PUD_UP); //sets pull up resistors
+	wiringPiISR(PLAY_BUTTON, INT_EDGE_RISING, &play_pause_isr); //interrupt for play button 
+	wiringPiISR(STOP_BUTTON, INT_EDGE_RISING, &stop_isr); //interrupt on stop button
     //setting up the SPI interface
-    //TODO
-    wiringPiSPISetup (SPI_CHAN, SPI_SPEED); //configures SPI with appropriate channel and speed
+    wiringPiSPISetup (SPI_CHAN, SPI_SPEED); //configures SPI with correct channel and speed
     return 0;
 }
 
@@ -85,17 +80,12 @@ int setup_gpio(void){
  * You need to use the buffer_location variable to check when you need to switch buffers
  */
 void *playThread(void *threadargs){
-    // If the thread isn't ready, don't do anything
+    // Waits while thread isnt ready
     while(!threadReady)
         continue;
     
     //You need to only be playing if the stopped flag is false
     while(!stopped){
-        //Code to suspend playing if paused
-		//TODO
-        
-        //Write the buffer out to SPI
-        //TODO
 	if (playing==true){
 	 wiringPiSPIDataRW (SPI_CHAN, buffer[bufferReading][buffer_location], 2); //reads and writes to SPI
 		
@@ -103,9 +93,9 @@ void *playThread(void *threadargs){
         buffer_location++;
         if(buffer_location >= BUFFER_SIZE) {
             buffer_location = 0;
-            bufferReading = !bufferReading; // switches column one it finishes one column
+            bufferReading = !bufferReading; // switches once column is done
         }
-      }//i added this one, delete if wrong
+      }
     }
     
     pthread_exit(NULL);
@@ -126,7 +116,7 @@ int main(){
 	pthread_attr_t tattr;
     pthread_t thread_id;
     int newprio = 99;
-    sched_param param;
+    sched_param param; //Assigning high priority to thread for best results
     
     pthread_attr_init (&tattr);
     pthread_attr_getschedparam (&tattr, &param); /* safe to get existing scheduling param */
@@ -162,10 +152,9 @@ int main(){
     int counter = 0;
     int bufferWriting = 0;
 
-    // Have a loop to read from the file
+    // Loops through and reads from file
 	 while((ch = fgetc(filePointer)) != EOF){
         while(threadReady && bufferWriting==bufferReading && counter==0){
-            //waits in here after it has written to a side, and the thread is still reading from the other side
             continue;
         }
 	if (playing==true){
@@ -183,7 +172,7 @@ int main(){
             counter = 0;
             bufferWriting = (bufferWriting+1)%2;
         }
-}//i added this
+}
     }
      
     // Close the file
